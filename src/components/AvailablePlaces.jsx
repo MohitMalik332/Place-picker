@@ -1,23 +1,49 @@
 import { useEffect, useState } from 'react';
 import Places from './Places.jsx';
+import Error from './Error.jsx';
+import { sortPlacesByDistance } from "../loc.js";
+import { fetchAvailablePlaces } from '../http.js';
+
 
 export default function AvailablePlaces({ onSelectPlace }) {
   const [isFetching, setIsFetching] = useState(false)
   const [availablePlaces, setAvailablePlaces] = useState([]);
+  const [error, setError] = useState();
 
   // without using useEffect this will cause an infinite loop.
   useEffect(() => {
     async function fetchPlaces() {
       setIsFetching(true);
-      const response =await fetch('http://localhost:3000/places');
-      const resData =await response.json();
-      setAvailablePlaces(resData.places);
-      setIsFetching(false);
+
+      try {
+        const places =  await fetchAvailablePlaces();
+
+        // to show the places in sorted order accord to user's location
+        navigator.geolocation.getCurrentPosition((position) => {
+          const sortPlaces = sortPlacesByDistance(
+            places,
+            position.coords.latitude,
+            position.coords.longitude
+          );
+          setAvailablePlaces(sortPlaces);
+          setIsFetching(false);
+        })
+
+      } catch (error) {
+        setError({
+          message: error.message || 'Could not fetch places, please try again later.'
+        });
+        setIsFetching(false);
+      }
+
     }
 
     fetchPlaces();
   }, []);
 
+  if (error){
+    return <Error title="An error occured!" message={error.message}/>
+  }
   
 
 
